@@ -454,11 +454,13 @@ const COMPETITIE_NAMEN={88:'Eredivisie',2:'Champions League',905:'Nederlands Elf
 function toonLaad(a){document.getElementById('laad-indicator').style.display=a?'block':'none';}
 function toonMelding(id,tekst,type='ok'){const el=document.getElementById(id);if(el)el.innerHTML=tekst?`<div class="melding melding-${type}">${tekst}</div>`:'';}
 
+const VASTE_SB_URL='https://jrjizeboegedzmpvfynm.supabase.co';
+const VASTE_SB_KEY='sb_publishable_WR6TWR0-HlJXT2i119camQ_W_PH3d3k';
+
 async function slaOpInstellingen(){
-  const url=document.getElementById('sb-url').value.trim();
-  const key=document.getElementById('sb-key').value.trim();
+  const url=document.getElementById('sb-url').value.trim()||VASTE_SB_URL;
+  const key=document.getElementById('sb-key').value.trim()||VASTE_SB_KEY;
   const apif=document.getElementById('apif-key').value.trim();
-  if(!url||!key){toonMelding('setup-melding','Vul Supabase URL en key in.','fout');return;}
   localStorage.setItem('sb_url',url);localStorage.setItem('sb_key',key);
   if(apif)localStorage.setItem('apif_key',apif);
   initialiseer(url,key,apif);
@@ -865,12 +867,9 @@ window.addEventListener('load',()=>{
   const iv=document.getElementById('import-van');const it=document.getElementById('import-tot');
   if(iv)iv.value=fmt(now);if(it)it.value=fmt(later);
   
-  const url=localStorage.getItem('sb_url'),key=localStorage.getItem('sb_key');
-  if(url&&key){
-    document.getElementById('sb-url').value=url;
-    document.getElementById('sb-key').value=key;
-    initialiseer(url,key,localStorage.getItem('apif_key')||'');
-  }
+  const url=localStorage.getItem('sb_url')||VASTE_SB_URL;
+  const key=localStorage.getItem('sb_key')||VASTE_SB_KEY;
+  initialiseer(url,key,localStorage.getItem('apif_key')||'');
 });
 </script>
 </body>
