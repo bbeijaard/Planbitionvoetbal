@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoetbalPoule</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--oranje:#E87722;--donker:#1a1a2e;--groen:#27ae60;--rood:#e74c3c;--grijs:#f5f5f5;--border:#e0e0e0;--tekst:#222;--muted:#777;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:var(--grijs);color:var(--tekst);min-height:100vh;}
+header{background:var(--donker);color:white;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+header h1{font-size:1.3rem;font-weight:700;}header h1 span{color:var(--oranje);}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;}
+.nav button{background:transparent;border:1px solid rgba(255,255,255,.3);color:white;padding:.4rem .9rem;border-radius:20px;cursor:pointer;font-size:.85rem;transition:all .2s;}
+.nav button:hover,.nav button.actief{background:var(--oranje);border-color:var(--oranje);}
+.container{max-width:960px;margin:0 auto;padding:1.5rem 1rem;}
+.card{background:white;border-radius:12px;border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;}
+.card h2{font-size:1.05rem;font-weight:600;margin-bottom:1rem;color:var(--donker);}
+input,select,textarea{width:100%;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;font-size:.95rem;margin-bottom:.75rem;background:white;color:var(--tekst);}
+input:focus,select:focus{outline:2px solid var(--oranje);border-color:transparent;}
+.btn{display:inline-block;padding:.6rem 1.2rem;border-radius:8px;border:none;cursor:pointer;font-size:.95rem;font-weight:500;transition:all .2s;}
+.btn-primary{background:var(--oranje);color:white;}.btn-primary:hover{background:#c9641a;}
+.btn-secondary{background:var(--grijs);color:var(--tekst);border:1px solid var(--border);}
+.btn-admin{background:var(--donker);color:white;}
+.btn-groen{background:var(--groen);color:white;}
+.btn-sm{padding:.35rem .8rem;font-size:.82rem;}
+.btn-danger{background:var(--rood);color:white;}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;}
+.badge-eredivisie{background:#fff3e0;color:#e65100;}
+.badge-champions{background:#e8eaf6;color:#1a237e;}
+.badge-oranje{background:#fff3e0;color:var(--oranje);}
+.badge-new{background:#e8f5e9;color:#2e7d32;}
+.wedstrijd-rij{border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:.75rem;}
+.wedstrijd-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;}
+.teams{display:flex;align-items:center;gap:.75rem;font-weight:600;font-size:1rem;}
+.teams .vs{color:var(--muted);font-weight:400;font-size:.85rem;}
+.score-input{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+.score-input input{width:55px;text-align:center;margin:0;}
+.score-dash{font-size:1.2rem;color:var(--muted);}
+.stand-tabel{width:100%;border-collapse:collapse;font-size:.9rem;}
+.stand-tabel th{text-align:left;padding:.6rem .5rem;border-bottom:2px solid var(--border);font-size:.8rem;color:var(--muted);font-weight:500;}
+.stand-tabel td{padding:.7rem .5rem;border-bottom:1px solid var(--border);}
+.stand-tabel tr:last-child td{border-bottom:none;}
+.melding{padding:.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:.9rem;}
+.melding-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
+.melding-fout{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+.melding-info{background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;}
+.melding-warn{background:#fffde7;color:#f57f17;border:1px solid #fff176;}
+.punten-pill{display:inline-block;background:var(--groen);color:white;border-radius:12px;padding:1px 7px;font-size:.78rem;font-weight:600;}
+.punten-pill.bonus{background:var(--oranje);}
+.tab-sectie{display:none;}.tab-sectie.actief{display:block;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:500px){.grid-2{grid-template-columns:1fr;}}
+.competitie-filter{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
+.competitie-filter button{border:1px solid var(--border);background:white;border-radius:20px;padding:.3rem .8rem;font-size:.82rem;cursor:pointer;}
+.competitie-filter button.actief{background:var(--donker);color:white;border-color:var(--donker);}
+.puntenoverzicht{display:flex;gap:.5rem;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:.5rem;}
+.puntenoverzicht span{display:flex;align-items:center;gap:4px;}
+#laad-indicator{position:fixed;top:0;left:0;right:0;height:3px;background:var(--oranje);display:none;z-index:999;}
+.speelronde-kiezer{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;}
+.speelronde-kiezer select{margin:0;width:auto;}
+.api-status{display:flex;align-items:center;gap:.5rem;font-size:.85rem;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot-ok{background:var(--groen);}.dot-fout{background:var(--rood);}.dot-leeg{background:var(--muted);}
+.progress{height:4px;background:#eee;border-radius:2px;margin:.5rem 0;}
+.progress-bar{height:100%;background:var(--oranje);border-radius:2px;transition:width .3s;}
+details summary{cursor:pointer;color:var(--oranje);font-size:.88rem;}
+code{background:#f5f5f5;padding:1px 5px;border-radius:4px;font-size:.85rem;}
+.fixture-card{display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem;}
+.fixture-card.geselecteerd{border-color:var(--oranje);background:#fff8f3;}
+.fixture-teams{font-weight:600;font-size:.92rem;}
+.fixture-info{font-size:.78rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="laad-indicator"></div>
+<header>
+  <h1>⚽ Voetbal<span>Poule</span></h1>
+  <div class="nav" id="nav-knoppen">
+    <button onclick="toonTab('voorspellingen')" id="nav-voorspellingen" class="actief">Voorspellingen</button>
+    <button onclick="toonTab('stand')" id="nav-stand">Stand</button>
+    <button onclick="toonTab('mijn')" id="nav-mijn">Mijn voorspellingen</button>
+    <button onclick="toonTab('admin')" id="nav-admin">Admin</button>
+  </div>
+</header>
+
+<!-- SETUP -->
+<div class="container" id="setup-scherm">
+  <div class="card" style="max-width:480px;margin:2rem auto">
+    <h2>⚙️ Eerste keer instellen</h2>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:1rem">Verbind de app met je gratis Supabase database.</p>
+    <label style="font-size:.82rem;color:var(--muted)">Supabase Project URL</label>
+    <input type="text" id="sb-url" placeholder="https://xxxx.supabase.co"/>
+    <label style="font-size:.82rem;color:var(--muted)">Supabase Anon Key</label>
+    <input type="text" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."/>
+    <label style="font-size:.82rem;color:var(--muted)">API-Football Key (RapidAPI) — optioneel</label>
+    <input type="text" id="apif-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
+    <button class="btn btn-primary" style="width:100%" onclick="slaOpInstellingen()">Verbinden & starten</button>
+    <div id="setup-melding" style="margin-top:.75rem"></div>
+    <details style="margin-top:1.25rem">
+      <summary>📖 Installatie-handleiding (klik om uit te klappen)</summary>
+      <div style="font-size:.82rem;color:var(--muted);line-height:1.8;margin-top:.75rem">
+        <b>1. Supabase (gratis database)</b><br>
+        → Ga naar <a href="https://supabase.com" target="_blank" style="color:var(--oranje)">supabase.com</a>, maak een gratis project aan.<br>
+        → Kopieer uit <i>Settings → API</i>: de Project URL en anon key.<br><br>
+        <b>2. SQL-script uitvoeren in Supabase</b><br>
+        → Ga naar <i>SQL Editor</i> en voer dit script uit:
+        <textarea readonly rows="18" style="font-family:monospace;font-size:.75rem;margin:.5rem 0">
+CREATE TABLE deelnemers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text UNIQUE NOT NULL,
+  teamnaam text NOT NULL,
+  aangemeld_op timestamptz DEFAULT now()
+);
+CREATE TABLE wedstrijden (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  extern_id bigint,
+  thuis text NOT NULL,
+  uit text NOT NULL,
+  thuis_logo text,
+  uit_logo text,
+  competitie text NOT NULL,
+  speelronde int NOT NULL,
+  speeldatum timestamptz,
+  uitslag_thuis int,
+  uitslag_uit int,
+  rust_thuis int,
+  rust_uit int,
+  verlenging boolean DEFAULT false,
+  penalties boolean DEFAULT false,
+  afgespeeld boolean DEFAULT false
+);
+CREATE TABLE voorspellingen (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  deelnemer_id uuid REFERENCES deelnemers(id),
+  wedstrijd_id uuid REFERENCES wedstrijden(id),
+  thuis int NOT NULL,
+  uit int NOT NULL,
+  rust_thuis int,
+  rust_uit int,
+  verlenging boolean DEFAULT false,
+  penalties boolean DEFAULT false,
+  punten int DEFAULT 0,
+  bonus boolean DEFAULT false,
+  ingevoerd_op timestamptz DEFAULT now(),
+  UNIQUE(deelnemer_id,wedstrijd_id)
+);
+CREATE TABLE instellingen (
+  sleutel text PRIMARY KEY,
+  waarde text NOT NULL
+);
+INSERT INTO instellingen VALUES
+  ('admin_wachtwoord','oranje2025'),
+  ('apifootball_key','');
+
+ALTER TABLE deelnemers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wedstrijden ENABLE ROW LEVEL SECURITY;
+ALTER TABLE voorspellingen ENABLE ROW LEVEL SECURITY;
+ALTER TABLE instellingen ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "lezen" ON deelnemers FOR SELECT USING (true);
+CREATE POLICY "invoegen" ON deelnemers FOR INSERT WITH CHECK (true);
+CREATE POLICY "lezen" ON wedstrijden FOR SELECT USING (true);
+CREATE POLICY "beheren" ON wedstrijden FOR ALL USING (true);
+CREATE POLICY "lezen" ON voorspellingen FOR SELECT USING (true);
+CREATE POLICY "invoegen" ON voorspellingen FOR INSERT WITH CHECK (true);
+CREATE POLICY "bijwerken" ON voorspellingen FOR UPDATE USING (true);
+CREATE POLICY "lezen" ON instellingen FOR SELECT USING (true);
+CREATE POLICY "bijwerken" ON instellingen FOR UPDATE USING (true);
+        </textarea>
+        <b>3. API-Football (optioneel, voor automatische uitslagen)</b><br>
+        → Ga naar <a href="https://rapidapi.com/api-sports/api/api-football" target="_blank" style="color:var(--oranje)">RapidAPI API-Football</a><br>
+        → Maak gratis account aan → klik "Subscribe" op de Basic (gratis) tier<br>
+        → Kopieer je <i>X-RapidAPI-Key</i> en plak die hierboven.<br><br>
+        <b>4. GitHub Pages (gratis hosting)</b><br>
+        → Sla deze pagina op als <code>index.html</code><br>
+        → Maak een GitHub repository aan en upload het bestand<br>
+        → Ga naar <i>Settings → Pages</i> en zet de bron op "main branch"<br>
+        → Je site is live op <code>gebruikersnaam.github.io/reponaam</code>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- HOOFD APP -->
+<div class="container" id="hoofd-app" style="display:none">
+
+  <!-- TAB: Voorspellingen -->
+  <div class="tab-sectie actief" id="tab-voorspellingen">
+    <div class="card">
+      <h2>Mijn gegevens</h2>
+      <div id="deelnemer-blok">
+        <div class="grid-2">
+          <div><label style="font-size:.82rem;color:var(--muted)">E-mailadres</label><input type="email" id="email" placeholder="jij@voorbeeld.nl"/></div>
+          <div><label style="font-size:.82rem;color:var(--muted)">Teamnaam</label><input type="text" id="teamnaam" placeholder="De Oranjes"/></div>
+        </div>
+        <button class="btn btn-primary" onclick="inloggen()">Inloggen / Aanmelden</button>
+      </div>
+      <div id="ingelogd-blok" style="display:none">
+        <p>Ingelogd als: <b id="toon-teamnaam"></b> &nbsp;<button class="btn btn-secondary btn-sm" onclick="uitloggen()">Uitloggen</button></p>
+      </div>
+    </div>
+    <div id="melding-voorspellingen"></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+        <h2 style="margin:0">Wedstrijden</h2>
+        <div class="speelronde-kiezer">
+          <label style="font-size:.82rem;color:var(--muted)">Ronde:</label>
+          <select id="ronde-kiezer" onchange="laadWedstrijden()"></select>
+        </div>
+      </div>
+      <div class="competitie-filter" id="comp-filter">
+        <button class="actief" onclick="filterComp(this,'alle')">Alle</button>
+        <button onclick="filterComp(this,'Eredivisie')">Eredivisie</button>
+        <button onclick="filterComp(this,'Champions League')">Champions League</button>
+        <button onclick="filterComp(this,'Nederlands Elftal')">Nederlands Elftal</button>
+      </div>
+      <div class="puntenoverzicht">
+        <span><span class="punten-pill">3 pt</span> Juiste uitslag</span>
+        <span><span class="punten-pill" style="background:#1565c0">1 pt</span> W/G/V correct</span>
+        <span><span class="punten-pill bonus">+1 bonus</span> Juiste ruststand</span>
+      </div>
+    </div>
+    <div id="wedstrijden-lijst"></div>
+    <div id="opslaan-blok" style="display:none;margin-top:1rem">
+      <button class="btn btn-primary" onclick="slaVoorspellingenOp()">💾 Voorspellingen opslaan</button>
+    </div>
+  </div>
+
+  <!-- TAB: Stand -->
+  <div class="tab-sectie" id="tab-stand">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+        <h2 style="margin:0">🏆 Eindstand</h2>
+        <select id="stand-ronde" onchange="laadStand()"><option value="totaal">Totaal alle rondes</option></select>
+      </div>
+      <div id="stand-inhoud"><p style="color:var(--muted);font-size:.9rem">Wordt geladen...</p></div>
+    </div>
+  </div>
+
+  <!-- TAB: Mijn voorspellingen -->
+  <div class="tab-sectie" id="tab-mijn">
+    <div id="mijn-inhoud"></div>
+  </div>
+
+  <!-- TAB: Admin -->
+  <div class="tab-sectie" id="tab-admin">
+    <div id="admin-login-blok" class="card" style="max-width:400px;margin:2rem auto">
+      <h2>🔒 Admin toegang</h2>
+      <input type="password" id="admin-ww" placeholder="Wachtwoord"/>
+      <button class="btn btn-admin" style="width:100%" onclick="adminInloggen()">Inloggen</button>
+      <div id="admin-login-melding"></div>
+    </div>
+
+    <div id="admin-inhoud" style="display:none">
+
+      <!-- API Instellingen -->
+      <div class="card">
+        <h2>🔑 API-Football instelling</h2>
+        <div class="api-status" id="api-status-blok">
+          <span class="dot dot-leeg" id="api-dot"></span>
+          <span id="api-status-tekst">Status onbekend</span>
+        </div>
+        <div style="margin-top:.75rem">
+          <label style="font-size:.82rem;color:var(--muted)">RapidAPI Key</label>
+          <input type="text" id="admin-apikey" placeholder="Plak hier je API-Football key"/>
+          <button class="btn btn-primary btn-sm" onclick="slaApiKeyOp()">Key opslaan</button>
+          <button class="btn btn-secondary btn-sm" style="margin-left:.5rem" onclick="testApiKey()">Verbinding testen</button>
+        </div>
+        <div id="api-key-melding" style="margin-top:.5rem"></div>
+      </div>
+
+      <!-- Wedstrijden importeren -->
+      <div class="card">
+        <h2>📥 Wedstrijden importeren uit API</h2>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Haal automatisch aankomende wedstrijden op voor Eredivisie, Champions League en het Nederlands Elftal.</p>
+        <div class="grid-2">
+          <div>
+            <label style="font-size:.82rem;color:var(--muted)">Competitie</label>
+            <select id="import-comp">
+              <option value="88">Eredivisie (NL)</option>
+              <option value="2">Champions League</option>
+              <option value="905">Nederlands Elftal (oefenwedstrijden)</option>
+              <option value="4">EK / WK kwalificatie NL</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:.82rem;color:var(--muted)">Seizoen</label>
+            <select id="import-seizoen">
+              <option value="2024">2024-2025</option>
+              <option value="2025">2025-2026</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label style="font-size:.82rem;color:var(--muted)">Van datum</label>
+            <input type="date" id="import-van"/>
+          </div>
+          <div>
+            <label style="font-size:.82rem;color:var(--muted)">Tot datum</label>
+            <input type="date" id="import-tot"/>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.82rem;color:var(--muted)">Opslaan als speelronde</label>
+          <input type="number" id="import-ronde" value="1" min="1"/>
+        </div>
+        <button class="btn btn-groen" onclick="importeerWedstrijden()">🔍 Wedstrijden ophalen</button>
+        <div id="import-melding" style="margin-top:.75rem"></div>
+        <div id="import-preview" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- Uitslagen ophalen -->
+      <div class="card">
+        <h2>🔄 Uitslagen automatisch ophalen</h2>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Haal de uitslagen op van afgespeelde wedstrijden en bereken automatisch de punten.</p>
+        <div class="speelronde-kiezer">
+          <label style="font-size:.82rem;color:var(--muted)">Ronde:</label>
+          <select id="uitslag-ronde-filter" onchange="laadAdminWedstrijden()"></select>
+        </div>
+        <button class="btn btn-groen" onclick="haalUitslagenOp()">⚽ Uitslagen ophalen & punten berekenen</button>
+        <div id="uitslag-melding" style="margin-top:.75rem"></div>
+        <div id="admin-wedstrijden" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- Handmatig toevoegen -->
+      <div class="card">
+        <details>
+          <summary style="font-weight:600;cursor:pointer;color:var(--donker)">➕ Wedstrijd handmatig toevoegen</summary>
+          <div style="margin-top:1rem">
+            <div class="grid-2">
+              <div><label style="font-size:.82rem;color:var(--muted)">Thuisploeg</label><input type="text" id="admin-thuis" placeholder="Ajax"/></div>
+              <div><label style="font-size:.82rem;color:var(--muted)">Uitploeg</label><input type="text" id="admin-uit" placeholder="PSV"/></div>
+            </div>
+            <div class="grid-2">
+              <div><label style="font-size:.82rem;color:var(--muted)">Competitie</label>
+                <select id="admin-comp"><option>Eredivisie</option><option>Champions League</option><option>Nederlands Elftal</option></select>
+              </div>
+              <div><label style="font-size:.82rem;color:var(--muted)">Speelronde</label><input type="number" id="admin-ronde-input" value="1" min="1"/></div>
+            </div>
+            <div><label style="font-size:.82rem;color:var(--muted)">Datum & tijd</label><input type="datetime-local" id="admin-datum"/></div>
+            <div id="admin-toevoeg-melding"></div>
+            <button class="btn btn-primary" onclick="voegWedstrijdToe()">Toevoegen</button>
+          </div>
+        </details>
+      </div>
+
+      <!-- Deelnemers -->
+      <div class="card">
+        <h2>👥 Deelnemers (<span id="deelnemers-tel">0</span>)</h2>
+        <div id="admin-deelnemers"></div>
+      </div>
+
+      <!-- GitHub Actions script -->
+      <div class="card">
+        <details>
+          <summary style="font-weight:600;cursor:pointer;color:var(--donker)">🤖 Automatische uitslagen via GitHub Actions</summary>
+          <div style="font-size:.83rem;color:var(--muted);line-height:1.7;margin-top:.75rem">
+            <p>Voeg dit bestand toe als <code>.github/workflows/uitslagen.yml</code> in je GitHub repository. Het script haalt elke avond om 23:00 automatisch de uitslagen op.</p>
+            <textarea readonly rows="30" style="font-family:monospace;font-size:.75rem;margin:.5rem 0">
+name: Uitslagen ophalen
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # Elke dag 23:00 NL tijd
+  workflow_dispatch:       # Ook handmatig starten
+
+jobs:
+  uitslagen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Uitslagen ophalen en verwerken
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          APIFOOTBALL_KEY: ${{ secrets.APIFOOTBALL_KEY }}
+        run: |
+          node - <<'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+          const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+          async function run() {
+            const { data: wedstrijden } = await sb.from('wedstrijden')
+              .select('*').eq('afgespeeld', false).not('extern_id', 'is', null);
+            
+            for (const w of wedstrijden || []) {
+              const gisteren = new Date(Date.now() - 86400000).toISOString();
+              if (new Date(w.speeldatum) > new Date()) continue;
+              
+              const res = await fetch(
+                `https://api-football-v1.p.rapidapi.com/v3/fixtures?id=${w.extern_id}`,
+                { headers: {
+                  'X-RapidAPI-Key': process.env.APIFOOTBALL_KEY,
+                  'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
+                }}
+              );
+              const json = await res.json();
+              const f = json.response?.[0];
+              if (!f || f.fixture.status.short !== 'FT') continue;
+
+              await sb.from('wedstrijden').update({
+                uitslag_thuis: f.score.fulltime.home,
+                uitslag_uit: f.score.fulltime.away,
+                rust_thuis: f.score.halftime.home,
+                rust_uit: f.score.halftime.away,
+                verlenging: ['ET','PEN'].includes(f.fixture.status.short),
+                penalties: f.fixture.status.short === 'PEN',
+                afgespeeld: true
+              }).eq('id', w.id);
+
+              // Punten berekenen
+              const { data: vs } = await sb.from('voorspellingen')
+                .select('*').eq('wedstrijd_id', w.id);
+              for (const v of vs || []) {
+                const uth = f.score.fulltime.home, utu = f.score.fulltime.away;
+                let punten = 0, bonus = false;
+                if (v.thuis === uth && v.uit === utu) punten = 3;
+                else if (Math.sign(v.thuis - v.uit) === Math.sign(uth - utu)) punten = 1;
+                if (v.rust_thuis === f.score.halftime.home && v.rust_uit === f.score.halftime.away) bonus = true;
+                await sb.from('voorspellingen').update({ punten, bonus }).eq('id', v.id);
+              }
+              console.log(`Verwerkt: ${w.thuis} vs ${w.uit}`);
+            }
+            console.log('Klaar!');
+          }
+          run().catch(console.error);
+          EOF
+
+      - name: NPM install supabase
+        run: npm install @supabase/supabase-js
+</textarea>
+            <p>Voeg deze <b>Secrets</b> toe in GitHub (<i>Settings → Secrets → Actions</i>):</p>
+            <ul style="margin:.5rem 0 0 1rem">
+              <li><code>SUPABASE_URL</code> — je Supabase project URL</li>
+              <li><code>SUPABASE_KEY</code> — je Supabase service_role key</li>
+              <li><code>APIFOOTBALL_KEY</code> — je RapidAPI key</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+    </div><!-- /admin-inhoud -->
+  </div><!-- /tab-admin -->
+
+</div><!-- /hoofd-app -->
+
+<script>
+let sb=null,huidigeDeelnemer=null,wedstrijden=[],voorspellingen_cache={},compFilter='alle',adminIngelogd=false,apiKey='';
+
+const COMPETITIE_NAMEN={88:'Eredivisie',2:'Champions League',905:'Nederlands Elftal',4:'Nederlands Elftal'};
+
+function toonLaad(a){document.getElementById('laad-indicator').style.display=a?'block':'none';}
+function toonMelding(id,tekst,type='ok'){const el=document.getElementById(id);if(el)el.innerHTML=tekst?`<div class="melding melding-${type}">${tekst}</div>`:'';}
+
+async function slaOpInstellingen(){
+  const url=document.getElementById('sb-url').value.trim();
+  const key=document.getElementById('sb-key').value.trim();
+  const apif=document.getElementById('apif-key').value.trim();
+  if(!url||!key){toonMelding('setup-melding','Vul Supabase URL en key in.','fout');return;}
+  localStorage.setItem('sb_url',url);localStorage.setItem('sb_key',key);
+  if(apif)localStorage.setItem('apif_key',apif);
+  initialiseer(url,key,apif);
+}
+
+async function initialiseer(url,key,apif=''){
+  try{
+    sb=supabase.createClient(url,key);
+    const{error}=await sb.from('wedstrijden').select('id').limit(1);
+    if(error)throw error;
+    apiKey=apif||localStorage.getItem('apif_key')||'';
+    document.getElementById('setup-scherm').style.display='none';
+    document.getElementById('hoofd-app').style.display='block';
+    await laadRondes();laadStand();herstelSessie();
+  }catch(e){toonMelding('setup-melding','Verbinding mislukt: '+e.message,'fout');}
+}
+
+async function laadRondes(){
+  const{data}=await sb.from('wedstrijden').select('speelronde').order('speelronde');
+  const rondes=[...new Set((data||[]).map(r=>r.speelronde))];
+  ['ronde-kiezer','uitslag-ronde-filter'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.innerHTML=rondes.map(r=>`<option value="${r}">Ronde ${r}</option>`).join('');
+  });
+  const st=document.getElementById('stand-ronde');
+  if(st)st.innerHTML='<option value="totaal">Totaal (alle rondes)</option>'+rondes.map(r=>`<option value="${r}">Ronde ${r}</option>`).join('');
+  if(rondes.length)laadWedstrijden();
+}
+
+function toonTab(naam){
+  document.querySelectorAll('.tab-sectie').forEach(t=>t.classList.remove('actief'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('actief'));
+  document.getElementById('tab-'+naam).classList.add('actief');
+  document.getElementById('nav-'+naam).classList.add('actief');
+  if(naam==='stand')laadStand();
+  if(naam==='mijn')laadMijnVoorspellingen();
+  if(naam==='admin'&&adminIngelogd){laadAdminWedstrijden();laadAdminDeelnemers();laadApiKeyUitDb();}
+}
+
+function filterComp(btn,comp){
+  document.querySelectorAll('#comp-filter button').forEach(b=>b.classList.remove('actief'));
+  btn.classList.add('actief');compFilter=comp;renderWedstrijden();
+}
+
+function badge(c){
+  if(c==='Eredivisie')return`<span class="badge badge-eredivisie">Eredivisie</span>`;
+  if(c==='Champions League')return`<span class="badge badge-champions">Champions League</span>`;
+  return`<span class="badge badge-oranje">Nederlands Elftal</span>`;
+}
+
+async function laadWedstrijden(){
+  const ronde=document.getElementById('ronde-kiezer').value;if(!ronde)return;
+  toonLaad(true);
+  const{data}=await sb.from('wedstrijden').select('*').eq('speelronde',ronde).order('speeldatum');
+  wedstrijden=data||[];
+  if(huidigeDeelnemer){
+    const ids=wedstrijden.map(w=>w.id);
+    const{data:vd}=await sb.from('voorspellingen').select('*').eq('deelnemer_id',huidigeDeelnemer.id).in('wedstrijd_id',ids);
+    voorspellingen_cache={};(vd||[]).forEach(v=>voorspellingen_cache[v.wedstrijd_id]=v);
+  }
+  renderWedstrijden();toonLaad(false);
+}
+
+function renderWedstrijden(){
+  const lijst=document.getElementById('wedstrijden-lijst');
+  const gef=compFilter==='alle'?wedstrijden:wedstrijden.filter(w=>w.competitie===compFilter);
+  if(!gef.length){lijst.innerHTML=`<div class="card"><p style="color:var(--muted)">Geen wedstrijden gevonden voor deze ronde.</p></div>`;return;}
+  lijst.innerHTML=gef.map(w=>{
+    const v=voorspellingen_cache[w.id]||{};
+    const heeftV=v.thuis!==undefined;
+    const af=w.afgespeeld;
+    const datum=w.speeldatum?new Date(w.speeldatum).toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    const logoThuis=w.thuis_logo?`<img src="${w.thuis_logo}" style="width:20px;height:20px;object-fit:contain;margin-right:4px" onerror="this.style.display='none'"/>`:'';
+    const logoUit=w.uit_logo?`<img src="${w.uit_logo}" style="width:20px;height:20px;object-fit:contain;margin-right:4px" onerror="this.style.display='none'"/>`:'';
+    return`<div class="wedstrijd-rij">
+      <div class="wedstrijd-header">
+        ${badge(w.competitie)}
+        ${datum?`<span style="font-size:.8rem;color:var(--muted)">${datum}</span>`:''}
+        ${af?`<span style="font-weight:700;color:var(--groen)">${w.uitslag_thuis}–${w.uitslag_uit}</span>`:''}
+        ${heeftV&&!af?'<span style="font-size:.8rem;color:var(--groen)">✓ Ingevuld</span>':''}
+      </div>
+      <div class="teams">
+        <span>${logoThuis}${w.thuis}</span><span class="vs">vs</span><span>${logoUit}${w.uit}</span>
+      </div>
+      ${!af?`
+      <div style="margin-top:.75rem">
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.4rem">Eindstand voorspelling</div>
+        <div class="score-input">
+          <input type="number" min="0" max="20" value="${v.thuis??''}" id="thuis-${w.id}" placeholder="0" style="margin:0"/>
+          <span class="score-dash">–</span>
+          <input type="number" min="0" max="20" value="${v.uit??''}" id="uit-${w.id}" placeholder="0" style="margin:0"/>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);margin:.5rem 0 .4rem">Ruststand (bonus +1 pt)</div>
+        <div class="score-input">
+          <input type="number" min="0" max="20" value="${v.rust_thuis??''}" id="rt-${w.id}" placeholder="0" style="margin:0"/>
+          <span class="score-dash">–</span>
+          <input type="number" min="0" max="20" value="${v.rust_uit??''}" id="ru-${w.id}" placeholder="0" style="margin:0"/>
+        </div>
+        <div style="margin-top:.5rem;display:flex;gap:1rem;font-size:.85rem">
+          <label><input type="checkbox" id="vrl-${w.id}" ${v.verlenging?'checked':''}/> Verlenging</label>
+          <label><input type="checkbox" id="pen-${w.id}" ${v.penalties?'checked':''}/> Penalties</label>
+        </div>
+      </div>`:`
+      <div style="margin-top:.5rem;font-size:.85rem;color:var(--muted)">
+        Rust: ${w.rust_thuis??'?'}–${w.rust_uit??'?'}${w.verlenging?' · Verlenging':''}${w.penalties?' · Penalties':''}
+      </div>
+      ${heeftV?`<div style="margin-top:.4rem;font-size:.85rem">Jouw voorspelling: <b>${v.thuis}–${v.uit}</b> &nbsp;<span class="punten-pill">${v.punten||0} pt</span>${v.bonus?'<span class="punten-pill bonus" style="margin-left:4px">+1 bonus</span>':''}</div>`:''}`}
+    </div>`;
+  }).join('');
+  document.getElementById('opslaan-blok').style.display=huidigeDeelnemer?'block':'none';
+}
+
+async function inloggen(){
+  const email=document.getElementById('email').value.trim().toLowerCase();
+  const teamnaam=document.getElementById('teamnaam').value.trim();
+  if(!email||!teamnaam){toonMelding('melding-voorspellingen','Vul je e-mail en teamnaam in.','fout');return;}
+  toonLaad(true);
+  let{data:b}=await sb.from('deelnemers').select('*').eq('email',email).maybeSingle();
+  if(!b){
+    const{data:n,error}=await sb.from('deelnemers').insert({email,teamnaam}).select().single();
+    if(error){toonMelding('melding-voorspellingen','Fout: '+error.message,'fout');toonLaad(false);return;}
+    b=n;toonMelding('melding-voorspellingen','Welkom '+teamnaam+'! Je bent aangemeld. 🎉','ok');
+  }else{toonMelding('melding-voorspellingen','Welkom terug, '+b.teamnaam+'!','info');}
+  huidigeDeelnemer=b;
+  localStorage.setItem('de_email',email);localStorage.setItem('de_naam',b.teamnaam);
+  document.getElementById('deelnemer-blok').style.display='none';
+  document.getElementById('ingelogd-blok').style.display='block';
+  document.getElementById('toon-teamnaam').textContent=b.teamnaam;
+  laadWedstrijden();toonLaad(false);
+}
+
+function uitloggen(){
+  huidigeDeelnemer=null;localStorage.removeItem('de_email');localStorage.removeItem('de_naam');
+  document.getElementById('deelnemer-blok').style.display='block';
+  document.getElementById('ingelogd-blok').style.display='none';
+  document.getElementById('opslaan-blok').style.display='none';
+  voorspellingen_cache={};renderWedstrijden();
+}
+
+function herstelSessie(){
+  const e=localStorage.getItem('de_email'),n=localStorage.getItem('de_naam');
+  if(e&&n){document.getElementById('email').value=e;document.getElementById('teamnaam').value=n;inloggen();}
+}
+
+async function slaVoorspellingenOp(){
+  if(!huidigeDeelnemer){toonMelding('melding-voorspellingen','Log eerst in.','fout');return;}
+  toonLaad(true);
+  const inv=[];
+  for(const w of wedstrijden){
+    if(w.afgespeeld)continue;
+    const th=document.getElementById(`thuis-${w.id}`)?.value;
+    const ui=document.getElementById(`uit-${w.id}`)?.value;
+    if(th===''||ui==='')continue;
+    inv.push({deelnemer_id:huidigeDeelnemer.id,wedstrijd_id:w.id,
+      thuis:parseInt(th),uit:parseInt(ui),
+      rust_thuis:parseInt(document.getElementById(`rt-${w.id}`)?.value)||null,
+      rust_uit:parseInt(document.getElementById(`ru-${w.id}`)?.value)||null,
+      verlenging:document.getElementById(`vrl-${w.id}`)?.checked||false,
+      penalties:document.getElementById(`pen-${w.id}`)?.checked||false});
+  }
+  if(!inv.length){toonMelding('melding-voorspellingen','Geen nieuwe voorspellingen om op te slaan.','fout');toonLaad(false);return;}
+  const{error}=await sb.from('voorspellingen').upsert(inv,{onConflict:'deelnemer_id,wedstrijd_id'});
+  if(error)toonMelding('melding-voorspellingen','Fout: '+error.message,'fout');
+  else{toonMelding('melding-voorspellingen',`✅ ${inv.length} voorspelling(en) opgeslagen!`,'ok');laadWedstrijden();}
+  toonLaad(false);
+}
+
+function berekenPunten(v,w){
+  let punten=0,bonus=false;
+  const vw=Math.sign(v.thuis-v.uit),ww=Math.sign(w.uitslag_thuis-w.uitslag_uit);
+  if(v.thuis===w.uitslag_thuis&&v.uit===w.uitslag_uit)punten=3;
+  else if(vw===ww)punten=1;
+  if(v.rust_thuis!==null&&v.rust_thuis===w.rust_thuis&&v.rust_uit===w.rust_uit)bonus=true;
+  return{punten,bonus};
+}
+
+async function laadStand(){
+  const ronde=document.getElementById('stand-ronde')?.value||'totaal';
+  const el=document.getElementById('stand-inhoud');
+  let query=sb.from('voorspellingen').select('deelnemer_id,punten,bonus,deelnemers(teamnaam)');
+  if(ronde!=='totaal'){
+    const{data:wids}=await sb.from('wedstrijden').select('id').eq('speelronde',ronde);
+    query=query.in('wedstrijd_id',(wids||[]).map(w=>w.id));
+  }
+  const{data}=await query;
+  if(!data?.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem">Nog geen resultaten beschikbaar.</p>';return;}
+  const per={};
+  for(const r of data){
+    if(!per[r.deelnemer_id])per[r.deelnemer_id]={naam:r.deelnemers?.teamnaam||'?',punten:0,bonus:0,correct:0};
+    per[r.deelnemer_id].punten+=(r.punten||0)+(r.bonus?1:0);
+    if(r.bonus)per[r.deelnemer_id].bonus++;
+    if(r.punten===3)per[r.deelnemer_id].correct++;
+  }
+  const ges=Object.values(per).sort((a,b)=>b.punten-a.punten);
+  el.innerHTML=`<table class="stand-tabel">
+    <thead><tr><th>#</th><th>Team</th><th>Punten</th><th>Juist</th><th>Bonus</th></tr></thead>
+    <tbody>${ges.map((d,i)=>`<tr>
+      <td style="font-weight:700;color:${i===0?'var(--groen)':i===1?'#888':i===2?'#cd7f32':'var(--muted)'}">${i+1}</td>
+      <td><b>${d.naam}</b></td>
+      <td><b style="font-size:1.05rem;color:var(--oranje)">${d.punten}</b></td>
+      <td>${d.correct}</td><td>${d.bonus}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function laadMijnVoorspellingen(){
+  const el=document.getElementById('mijn-inhoud');
+  if(!huidigeDeelnemer){el.innerHTML='<div class="card"><p style="color:var(--muted)">Log in om je voorspellingen te bekijken.</p></div>';return;}
+  const{data}=await sb.from('voorspellingen').select('*,wedstrijden(*)').eq('deelnemer_id',huidigeDeelnemer.id).order('ingevoerd_op',{ascending:false});
+  if(!data?.length){el.innerHTML='<div class="card"><p style="color:var(--muted)">Nog geen voorspellingen ingevoerd.</p></div>';return;}
+  el.innerHTML=data.map(v=>{
+    const w=v.wedstrijden;const af=w?.afgespeeld;
+    return`<div class="card">
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem">
+        ${badge(w?.competitie||'')}
+        <span style="font-size:.8rem;color:var(--muted)">Ronde ${w?.speelronde}</span>
+        ${af?`<span class="punten-pill">${v.punten} pt</span>${v.bonus?'<span class="punten-pill bonus" style="margin-left:4px">+1 bonus</span>':''}`:
+        '<span style="font-size:.78rem;color:var(--muted)">Nog niet gespeeld</span>'}
+      </div>
+      <div class="teams" style="font-size:.95rem">${w?.thuis} <span class="vs">vs</span> ${w?.uit}</div>
+      <div style="margin-top:.4rem;font-size:.85rem;color:var(--muted)">
+        Jouw voorspelling: <b style="color:var(--tekst)">${v.thuis}–${v.uit}</b>
+        ${v.rust_thuis!==null?` (rust: ${v.rust_thuis}–${v.rust_uit})`:''}
+        ${v.verlenging?' · Verlenging':''}${v.penalties?' · Penalties':''}
+        ${af?` | Uitslag: <b style="color:var(--groen)">${w.uitslag_thuis}–${w.uitslag_uit}</b>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== ADMIN =====
+async function adminInloggen(){
+  const ww=document.getElementById('admin-ww').value;
+  const{data}=await sb.from('instellingen').select('waarde').eq('sleutel','admin_wachtwoord').single();
+  if(data?.waarde===ww){
+    adminIngelogd=true;
+    document.getElementById('admin-login-blok').style.display='none';
+    document.getElementById('admin-inhoud').style.display='block';
+    laadAdminWedstrijden();laadAdminDeelnemers();laadApiKeyUitDb();
+  }else{toonMelding('admin-login-melding','Onjuist wachtwoord.','fout');}
+}
+
+async function laadApiKeyUitDb(){
+  const{data}=await sb.from('instellingen').select('waarde').eq('sleutel','apifootball_key').maybeSingle();
+  if(data?.waarde){apiKey=data.waarde;document.getElementById('admin-apikey').value=apiKey;updateApiStatus();}
+}
+
+function updateApiStatus(){
+  const dot=document.getElementById('api-dot');
+  const txt=document.getElementById('api-status-tekst');
+  if(apiKey){dot.className='dot dot-ok';txt.textContent='API key ingesteld';}
+  else{dot.className='dot dot-leeg';txt.textContent='Geen API key — vul hieronder in';}
+}
+
+async function slaApiKeyOp(){
+  const k=document.getElementById('admin-apikey').value.trim();
+  if(!k){toonMelding('api-key-melding','Vul een key in.','fout');return;}
+  const{error}=await sb.from('instellingen').upsert({sleutel:'apifootball_key',waarde:k});
+  if(error){toonMelding('api-key-melding','Fout: '+error.message,'fout');return;}
+  apiKey=k;localStorage.setItem('apif_key',k);updateApiStatus();
+  toonMelding('api-key-melding','API key opgeslagen!','ok');
+}
+
+async function testApiKey(){
+  if(!apiKey){toonMelding('api-key-melding','Geen API key ingesteld.','fout');return;}
+  toonMelding('api-key-melding','Verbinding testen...','info');
+  try{
+    const r=await fetch('https://api-football-v1.p.rapidapi.com/v3/status',{
+      headers:{'X-RapidAPI-Key':apiKey,'X-RapidAPI-Host':'api-football-v1.p.rapidapi.com'}});
+    const j=await r.json();
+    if(j.response?.account){
+      toonMelding('api-key-melding',`✅ Verbonden! Account: ${j.response.account.email} | Requests vandaag: ${j.response.requests?.current||0}/${j.response.requests?.limit_day||100}`,'ok');
+    }else{toonMelding('api-key-melding','Verbinding mislukt. Controleer je key.','fout');}
+  }catch(e){toonMelding('api-key-melding','Netwerkfout: '+e.message,'fout');}
+}
+
+async function importeerWedstrijden(){
+  if(!apiKey){toonMelding('import-melding','Stel eerst een API key in.','warn');return;}
+  const leagueId=document.getElementById('import-comp').value;
+  const seizoen=document.getElementById('import-seizoen').value;
+  const van=document.getElementById('import-van').value;
+  const tot=document.getElementById('import-tot').value;
+  const ronde=parseInt(document.getElementById('import-ronde').value);
+  
+  toonMelding('import-melding','Wedstrijden ophalen...','info');
+  let url=`https://api-football-v1.p.rapidapi.com/v3/fixtures?league=${leagueId}&season=${seizoen}`;
+  if(van)url+=`&from=${van}`;if(tot)url+=`&to=${tot}`;
+  
+  try{
+    const r=await fetch(url,{headers:{'X-RapidAPI-Key':apiKey,'X-RapidAPI-Host':'api-football-v1.p.rapidapi.com'}});
+    const j=await r.json();
+    const fixtures=j.response||[];
+    if(!fixtures.length){toonMelding('import-melding','Geen wedstrijden gevonden voor deze periode.','warn');return;}
+    
+    const compNaam=COMPETITIE_NAMEN[leagueId]||'Overig';
+    document.getElementById('import-preview').innerHTML=`
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Gevonden: <b>${fixtures.length}</b> wedstrijden. Kies welke je wilt importeren:</p>
+      ${fixtures.map(f=>`
+        <div class="fixture-card">
+          <div>
+            <div class="fixture-teams">${f.teams.home.name} vs ${f.teams.away.name}</div>
+            <div class="fixture-info">${new Date(f.fixture.date).toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${f.fixture.venue?.name||''}</div>
+          </div>
+          <button class="btn btn-groen btn-sm" onclick="importeerEnkele(${f.fixture.id},'${f.teams.home.name.replace(/'/g,"\\'")}','${f.teams.away.name.replace(/'/g,"\\'")}','${f.teams.home.logo}','${f.teams.away.logo}','${compNaam}',${ronde},'${f.fixture.date}',this)">Importeren</button>
+        </div>`).join('')}`;
+    toonMelding('import-melding',`${fixtures.length} wedstrijden gevonden.`,'ok');
+  }catch(e){toonMelding('import-melding','Fout bij ophalen: '+e.message,'fout');}
+}
+
+async function importeerEnkele(externId,thuis,uit,thuisLogo,uitLogo,comp,ronde,datum,btn){
+  btn.disabled=true;btn.textContent='Bezig...';
+  const{error}=await sb.from('wedstrijden').insert({
+    extern_id:externId,thuis,uit,thuis_logo:thuisLogo,uit_logo:uitLogo,
+    competitie:comp,speelronde:ronde,speeldatum:datum
+  });
+  if(error){btn.textContent='Fout!';btn.style.background='var(--rood)';}
+  else{btn.textContent='✓ Geïmporteerd';btn.style.background='#aaa';laadRondes();}
+}
+
+async function haalUitslagenOp(){
+  if(!apiKey){toonMelding('uitslag-melding','Stel eerst een API key in (bovenaan deze pagina).','warn');return;}
+  const ronde=document.getElementById('uitslag-ronde-filter').value;
+  toonMelding('uitslag-melding','Uitslagen ophalen...','info');
+  
+  const{data:weds}=await sb.from('wedstrijden').select('*').eq('speelronde',ronde).eq('afgespeeld',false).not('extern_id','is',null);
+  if(!weds?.length){toonMelding('uitslag-melding','Geen openstaande wedstrijden met extern ID in deze ronde.','warn');return;}
+  
+  let verwerkt=0,overgeslagen=0;
+  for(const w of weds){
+    try{
+      const r=await fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures?id=${w.extern_id}`,{
+        headers:{'X-RapidAPI-Key':apiKey,'X-RapidAPI-Host':'api-football-v1.p.rapidapi.com'}});
+      const j=await r.json();
+      const f=j.response?.[0];
+      if(!f){overgeslagen++;continue;}
+      const status=f.fixture.status.short;
+      if(!['FT','AET','PEN'].includes(status)){overgeslagen++;continue;}
+      
+      await sb.from('wedstrijden').update({
+        uitslag_thuis:f.score.fulltime.home,uitslag_uit:f.score.fulltime.away,
+        rust_thuis:f.score.halftime.home,rust_uit:f.score.halftime.away,
+        verlenging:['AET','PEN'].includes(status),penalties:status==='PEN',afgespeeld:true
+      }).eq('id',w.id);
+      
+      const{data:vs}=await sb.from('voorspellingen').select('*').eq('wedstrijd_id',w.id);
+      for(const v of vs||[]){
+        const wData={uitslag_thuis:f.score.fulltime.home,uitslag_uit:f.score.fulltime.away,rust_thuis:f.score.halftime.home,rust_uit:f.score.halftime.away};
+        const{punten,bonus}=berekenPunten(v,wData);
+        await sb.from('voorspellingen').update({punten,bonus}).eq('id',v.id);
+      }
+      verwerkt++;
+    }catch(e){overgeslagen++;}
+  }
+  toonMelding('uitslag-melding',`✅ ${verwerkt} wedstrijd(en) verwerkt, ${overgeslagen} overgeslagen (nog niet afgespeeld of geen ID).`,'ok');
+  laadAdminWedstrijden();laadStand();laadRondes();
+}
+
+async function laadAdminWedstrijden(){
+  if(!adminIngelogd)return;
+  const ronde=document.getElementById('uitslag-ronde-filter')?.value;if(!ronde)return;
+  const{data}=await sb.from('wedstrijden').select('*').eq('speelronde',ronde).order('speeldatum');
+  const el=document.getElementById('admin-wedstrijden');
+  if(!data?.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem">Geen wedstrijden in deze ronde.</p>';return;}
+  el.innerHTML=`<table class="stand-tabel">
+    <thead><tr><th>Wedstrijd</th><th>Status</th><th>Uitslag</th></tr></thead>
+    <tbody>${data.map(w=>`<tr>
+      <td><b>${w.thuis}</b> vs <b>${w.uit}</b><br><span style="font-size:.78rem;color:var(--muted)">${badge(w.competitie)} ${w.extern_id?'· ID: '+w.extern_id:''}</span></td>
+      <td>${w.afgespeeld?'<span style="color:var(--groen)">✓ Afgespeeld</span>':'<span style="color:var(--muted)">Nog niet gespeeld</span>'}</td>
+      <td>${w.afgespeeld?`${w.uitslag_thuis}–${w.uitslag_uit} <span style="font-size:.78rem;color:var(--muted)">(rust ${w.rust_thuis}–${w.rust_uit})</span>`:'–'}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function voegWedstrijdToe(){
+  const thuis=document.getElementById('admin-thuis').value.trim();
+  const uit=document.getElementById('admin-uit').value.trim();
+  const comp=document.getElementById('admin-comp').value;
+  const ronde=parseInt(document.getElementById('admin-ronde-input').value);
+  const datum=document.getElementById('admin-datum').value;
+  if(!thuis||!uit){toonMelding('admin-toevoeg-melding','Vul beide ploegen in.','fout');return;}
+  const{error}=await sb.from('wedstrijden').insert({thuis,uit,competitie:comp,speelronde:ronde,speeldatum:datum||null});
+  if(error){toonMelding('admin-toevoeg-melding','Fout: '+error.message,'fout');}
+  else{toonMelding('admin-toevoeg-melding','Wedstrijd toegevoegd!','ok');laadRondes();laadAdminWedstrijden();}
+}
+
+async function laadAdminDeelnemers(){
+  if(!adminIngelogd)return;
+  const{data}=await sb.from('deelnemers').select('*').order('aangemeld_op');
+  document.getElementById('deelnemers-tel').textContent=data?.length||0;
+  const el=document.getElementById('admin-deelnemers');
+  if(!data?.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem">Nog geen deelnemers.</p>';return;}
+  el.innerHTML=`<table class="stand-tabel">
+    <thead><tr><th>Teamnaam</th><th>E-mail</th><th>Aangemeld</th></tr></thead>
+    <tbody>${data.map(d=>`<tr>
+      <td><b>${d.teamnaam}</b></td>
+      <td style="color:var(--muted);font-size:.83rem">${d.email}</td>
+      <td style="color:var(--muted);font-size:.83rem">${new Date(d.aangemeld_op).toLocaleDateString('nl-NL')}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// Start
+window.addEventListener('load',()=>{
+  // Stel standaard datums in (vandaag t/m +14 dagen)
+  const now=new Date(),later=new Date(now.getTime()+14*86400000);
+  const fmt=d=>d.toISOString().split('T')[0];
+  const iv=document.getElementById('import-van');const it=document.getElementById('import-tot');
+  if(iv)iv.value=fmt(now);if(it)it.value=fmt(later);
+  
+  const url=localStorage.getItem('sb_url'),key=localStorage.getItem('sb_key');
+  if(url&&key){
+    document.getElementById('sb-url').value=url;
+    document.getElementById('sb-key').value=key;
+    initialiseer(url,key,localStorage.getItem('apif_key')||'');
+  }
+});
+</script>
+</body>
+</html>
